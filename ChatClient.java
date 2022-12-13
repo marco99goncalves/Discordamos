@@ -3,9 +3,10 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 import java.awt.Toolkit;
+import java.net.Socket;
 
 
-public class ChatClient {
+public class ChatClient implements Runnable {
 
     // Variáveis relacionadas com a interface gráfica --- * NÃO MODIFICAR *
     JFrame frame = new JFrame("Discordamos");
@@ -16,14 +17,15 @@ public class ChatClient {
     // Se for necessário adicionar variáveis ao objecto ChatClient, devem
     // ser colocadas aqui
 
-
-
-
     // Método a usar para acrescentar uma string à caixa de texto
     // * NÃO MODIFICAR *
     public void printMessage(final String message) {
         chatArea.append(message);
     }
+
+    Socket connSocket;
+    DataOutputStream outToServer;
+    BufferedReader inFromServer;
 
 
     // Construtor
@@ -37,7 +39,7 @@ public class ChatClient {
         frame.setLayout(new BorderLayout());
         frame.add(panel, BorderLayout.SOUTH);
         frame.add(new JScrollPane(chatArea), BorderLayout.CENTER);
-        frame.setSize(500, 300);
+        frame.setSize(1000, 1000);
         frame.setVisible(true);
 
         java.net.URL url = ClassLoader.getSystemResource("Resources/icon.png");
@@ -51,7 +53,8 @@ public class ChatClient {
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
-                    newMessage(chatBox.getText() + "\n");
+                    String message = chatBox.getText();
+                    newMessage(message);
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 } finally {
@@ -69,8 +72,10 @@ public class ChatClient {
         // Se for necessário adicionar código de inicialização ao
         // construtor, deve ser colocado aqui
 
-
-
+        // Initialize the TCP Connection
+        connSocket = new Socket(server, port);
+        outToServer = new DataOutputStream(connSocket.getOutputStream());
+        inFromServer = new BufferedReader(new InputStreamReader(connSocket.getInputStream()));
     }
 
 
@@ -78,18 +83,38 @@ public class ChatClient {
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
         // PREENCHER AQUI com código que envia a mensagem ao servidor
-        printMessage(message);
-    }
+        if (message == null || message.isEmpty())
+            return;
 
+        try {
+            outToServer.writeBytes(message + '\n');
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+    }
 
     // Método principal do objecto
-    public void run() throws IOException {
+    public void run() {
         // PREENCHER AQUI
+        String res = null;
+        while(true){
+            try {
+                if (((res = inFromServer.readLine()) != null)){
+                    ServerResponse serverResponse = new ServerResponse(res);
 
+                    if(serverResponse.getMessage() != null)
+                        printMessage(serverResponse.toString() + "\n");
+                }
+            } catch (IOException e) {
+                System.out.println("ERRO: " + res);
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            }
+        }
 
 
     }
-
 
     // Instancia o ChatClient e arranca-o invocando o seu método run()
     // * NÃO MODIFICAR *
