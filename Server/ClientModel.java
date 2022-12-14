@@ -1,14 +1,15 @@
-package Server;
+import java.nio.channels.SelectionKey;
 
-public class ClientModel {
+public class ClientModel implements Comparable{
     String buffer;
     String name;
     String room;
-
+    SelectionKey key;
     public ClientModel() {
         this.buffer = "";
         this.name = "";
         this.room = "";
+        this.key = null;
     }
 
     public String getBuffer() {
@@ -35,4 +36,16 @@ public class ClientModel {
         this.room = room;
     }
 
+    public SelectionKey getKey() {
+        return key;
+    }
+
+    public void setKey(SelectionKey key) {
+        this.key = key;
+    }
+
+    @Override
+    public int compareTo(Object other) {
+        return (this.name.compareTo(((ClientModel)other).name));
+    }
 }

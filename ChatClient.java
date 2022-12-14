@@ -101,10 +101,7 @@ public class ChatClient implements Runnable {
         while(true){
             try {
                 if (((res = inFromServer.readLine()) != null)){
-                    ServerResponse serverResponse = new ServerResponse(res);
-
-                    if(serverResponse.getMessage() != null)
-                        printMessage(serverResponse.toString() + "\n");
+                        printMessage(res + "\n");
                 }
             } catch (IOException e) {
                 System.out.println("ERRO: " + res);

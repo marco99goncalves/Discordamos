@@ -1,5 +1,3 @@
-package Server;
-
 import java.io.*;
 import java.net.*;
 import java.nio.*;
@@ -15,9 +13,15 @@ public class Server {
 
     // Decoder for incoming text -- assume UTF-8
 
+    TreeSet<Room> rooms;
+    static Room defaultRoom;
+
     static public void main(String args[]) throws Exception {
         // Parse port from command line
         int port = Integer.parseInt(args[0]);
+
+        // TODO Remove this room
+        defaultRoom = new Room("DEFAULT");
 
         try {
             // Instead of creating a ServerSocket, create a ServerSocketChannel
@@ -107,7 +111,7 @@ public class Server {
                             try {
                                 sc.close();
                             } catch (IOException ie2) {
-                                System.out.println(ie2);
+                                ie2.printStackTrace();
                             }
 
                             System.out.println("Closed " + sc);
@@ -119,7 +123,7 @@ public class Server {
                 keys.clear();
             }
         } catch (IOException ie) {
-            System.err.println(ie);
+            ie.printStackTrace();
         }
     }
 
@@ -143,15 +147,18 @@ public class Server {
 
         System.out.println(message + " " + message.contains("\n"));
 
-        // Decode and print the message to stdout
-        Set<SelectionKey> keys = selector.keys();
-        Iterator<SelectionKey> it = keys.iterator();
 
+
+        // TODO: Find a way to replace
         if (thisSelectionKey.attachment() == null) {
             ClientModel client = new ClientModel();
             client.setName(message.replace("\n", ""));
+            client.setKey(thisSelectionKey);
+            client.setRoom("DEFAULT");
+            defaultRoom.clients.add(client);
+
             thisSelectionKey.attach(client);
-            sc.write(StandardCharsets.US_ASCII.encode("OK-OK\n"));
+            sc.write(StandardCharsets.US_ASCII.encode("OK\n"));
             buffer.clear();
             return true;
         }
@@ -163,25 +170,63 @@ public class Server {
             return true;
         }
 
-        while (it.hasNext()) {
-            SelectionKey key = it.next();
-            if (!key.isAcceptable()) {
-                SocketChannel s = (SocketChannel) key.channel();
-                ClientModel client = (ClientModel) sc.keyFor(selector).attachment();
+        message = ((ClientModel)thisSelectionKey.attachment()).buffer + message;
+        processMessage(message, selector.keys(), thisSelectionKey);
 
-                String send = "OK-" + client.name + "> " + client.buffer + message;
-                System.out.println("FINAL_MESSAGE: " + send);
-                System.out.println("ola");
-                s.write(StandardCharsets.US_ASCII.encode(send));
-                buffer.rewind();
-            }
 
-        }
+//        // Decode and print the message to stdout
+//        Set<SelectionKey> keys = selector.keys();
+//        Iterator<SelectionKey> it = keys.iterator();
+//        while (it.hasNext()) {
+//            SelectionKey key = it.next();
+//            if (!key.isAcceptable()) {
+//                SocketChannel s = (SocketChannel) key.channel();
+//                ClientModel client = (ClientModel) sc.keyFor(selector).attachment();
+//
+//                String send = client.name + "> " + client.buffer + message;
+////                System.out.println("FINAL_MESSAGE: " + send);
+////                System.out.println("ola");
+//                s.write(StandardCharsets.US_ASCII.encode(send));
+//                buffer.rewind();
+//            }
+//
+//        }
 
         ClientModel client = (ClientModel) sc.keyFor(selector).attachment();
         client.setBuffer("");
 
         buffer.clear();
         return true;
+    }
+
+    static void processMessage(String message, Set<SelectionKey> keys, SelectionKey senderKey){
+        //Parse message
+        if(IsCommand(message)){
+            //Run the corresponding command
+        }else{
+            //It's a message,  broadcast it to all users in the room
+            SendMessageToAllUsers(((ClientModel)senderKey.attachment()), message, defaultRoom);
+        }
+    }
+
+    static void SendMessageToAllUsers(ClientModel sender, String message, Room room){
+        for(ClientModel client : room.clients){
+            SelectionKey key = client.getKey();
+            if(!key.isAcceptable()){
+                SocketChannel s = (SocketChannel) key.channel();
+                String send = "MESSAGE " + sender.getName() + " " + message;
+                try {
+                    System.out.print("FINAL_MESSAGE: " + send + "ola");
+                    s.write(StandardCharsets.US_ASCII.encode(send));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    static boolean IsCommand(String message){
+        return false;
     }
 }
