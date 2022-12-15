@@ -3,12 +3,12 @@ import java.nio.channels.SelectionKey;
 public class ClientModel implements Comparable{
     String buffer;
     String name;
-    String room;
+    Room room;
     SelectionKey key;
     public ClientModel() {
         this.buffer = "";
         this.name = "";
-        this.room = "";
+        this.room = null;
         this.key = null;
     }
 
@@ -28,12 +28,13 @@ public class ClientModel implements Comparable{
         this.name = name;
     }
 
-    public String getRoom() {
+    public Room getRoom() {
         return room;
     }
 
-    public void setRoom(String room) {
+    public void setRoom(Room room) {
         this.room = room;
+        room.clients.add(this);
     }
 
     public SelectionKey getKey() {

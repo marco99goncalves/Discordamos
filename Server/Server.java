@@ -13,7 +13,10 @@ public class Server {
 
     // Decoder for incoming text -- assume UTF-8
 
-    TreeSet<Room> rooms;
+    static TreeSet<Room> rooms;
+    static TreeSet<String> chosenNicks;
+
+    static TreeSet<String> commands;
     static Room defaultRoom;
 
     static public void main(String args[]) throws Exception {
@@ -22,6 +25,9 @@ public class Server {
 
         // TODO Remove this room
         defaultRoom = new Room("DEFAULT");
+        chosenNicks = new TreeSet<>();
+
+        InitializeCommands();
 
         try {
             // Instead of creating a ServerSocket, create a ServerSocketChannel
@@ -83,7 +89,6 @@ public class Server {
                         SocketChannel sc = null;
 
                         try {
-
                             // It's incoming data on a connection -- process it
                             sc = (SocketChannel) key.channel();
                             boolean ok = processInput(sc, selector, key);
@@ -127,6 +132,14 @@ public class Server {
         }
     }
 
+    private static void InitializeCommands() {
+        commands = new TreeSet<>();
+        commands.add("/nick");
+        commands.add("/join");
+        commands.add("/leave");
+        commands.add("/bye");
+    }
+
     // Just read the message from the socket and send it to stdout
     static private boolean processInput(SocketChannel sc, Selector selector, SelectionKey thisSelectionKey)
             throws IOException {
@@ -152,15 +165,11 @@ public class Server {
         // TODO: Find a way to replace
         if (thisSelectionKey.attachment() == null) {
             ClientModel client = new ClientModel();
-            client.setName(message.replace("\n", ""));
             client.setKey(thisSelectionKey);
-            client.setRoom("DEFAULT");
-            defaultRoom.clients.add(client);
+            client.setRoom(defaultRoom);
 
             thisSelectionKey.attach(client);
-            sc.write(StandardCharsets.US_ASCII.encode("OK\n"));
             buffer.clear();
-            return true;
         }
 
         if (!message.contains("\n")) {
@@ -201,23 +210,53 @@ public class Server {
 
     static void processMessage(String message, Set<SelectionKey> keys, SelectionKey senderKey){
         //Parse message
+        ClientModel client = (ClientModel) senderKey.attachment();
+
         if(IsCommand(message)){
-            //Run the corresponding command
+            RunCommand(message, keys, senderKey);
         }else{
             //It's a message,  broadcast it to all users in the room
-            SendMessageToAllUsers(((ClientModel)senderKey.attachment()), message, defaultRoom);
+            SendMessageToAllUsers(client.name + ">" + message, defaultRoom);
         }
     }
 
-    static void SendMessageToAllUsers(ClientModel sender, String message, Room room){
+    static void SendMessageToAllUsers(String message, Room room){
         for(ClientModel client : room.clients){
             SelectionKey key = client.getKey();
             if(!key.isAcceptable()){
                 SocketChannel s = (SocketChannel) key.channel();
-                String send = "MESSAGE " + sender.getName() + " " + message;
                 try {
-                    System.out.print("FINAL_MESSAGE: " + send + "ola");
-                    s.write(StandardCharsets.US_ASCII.encode(send));
+                    s.write(StandardCharsets.US_ASCII.encode(message));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    static void SendMessageToUser(String message, SelectionKey receiverKey){
+        if(!receiverKey.isAcceptable()){
+            SocketChannel s = (SocketChannel) receiverKey.channel();
+            try{
+                s.write(StandardCharsets.US_ASCII.encode(message));
+            }catch (IOException e){
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    static void SendMessageToAllButSender(String message, Room room, SelectionKey receiverKey){
+        for(ClientModel client : room.clients){
+            SelectionKey key = client.getKey();
+            if(key == receiverKey) // Ignore the sender
+                continue;
+
+            if(!key.isAcceptable()){
+                SocketChannel s = (SocketChannel) key.channel();
+                try {
+                    s.write(StandardCharsets.US_ASCII.encode(message));
                 } catch (IOException e) {
                     e.printStackTrace();
                     throw new RuntimeException(e);
@@ -227,6 +266,45 @@ public class Server {
     }
 
     static boolean IsCommand(String message){
-        return false;
+        Scanner sc = new Scanner(message);
+
+        String first = sc.next();
+        return commands.contains(first);
     }
+
+    static void RunCommand(String command, Set<SelectionKey> keys, SelectionKey senderKey){
+        Scanner sc = new Scanner(command);
+        String first = sc.next();
+
+        switch(first){
+            case "/nick":
+                String newNick = sc.next();
+                RunNickCommand(newNick, keys, senderKey);
+                break;
+        }
+    }
+
+    static void RunNickCommand(String newNick, Set<SelectionKey> keys, SelectionKey senderKey){
+        if(chosenNicks.contains(newNick)){
+            // User is already in use
+            SendMessageToUser("ERROR\n", senderKey);
+            return;
+        }
+        ClientModel client = (ClientModel) senderKey.attachment();
+        if(client.getRoom() == null){
+            // We are not in a room, or we are creating a new user
+            client.setName(newNick);
+            chosenNicks.add(newNick);
+            SendMessageToUser("OK\n", senderKey);
+        }else{
+            // We are currently in a room
+            String oldNick = client.getName();
+            client.setName(newNick);
+            chosenNicks.remove(oldNick);
+            chosenNicks.add(newNick);
+            SendMessageToAllButSender("NEWNICK " + oldNick + " " + newNick + "\n", client.room, senderKey);
+            SendMessageToUser("OK\n", senderKey);
+        }
+    }
+
 }

@@ -39,7 +39,7 @@ public class ChatClient implements Runnable {
         frame.setLayout(new BorderLayout());
         frame.add(panel, BorderLayout.SOUTH);
         frame.add(new JScrollPane(chatArea), BorderLayout.CENTER);
-        frame.setSize(1000, 1000);
+        frame.setSize(500, 500);
         frame.setVisible(true);
 
         java.net.URL url = ClassLoader.getSystemResource("Resources/icon.png");
@@ -101,7 +101,7 @@ public class ChatClient implements Runnable {
         while(true){
             try {
                 if (((res = inFromServer.readLine()) != null)){
-                        printMessage(res + "\n");
+                    printMessage(res + "\n");
                 }
             } catch (IOException e) {
                 System.out.println("ERRO: " + res);
