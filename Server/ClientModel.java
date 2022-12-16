@@ -34,7 +34,8 @@ public class ClientModel implements Comparable{
 
     public void setRoom(Room room) {
         this.room = room;
-        room.clients.add(this);
+        if(room != null)
+            room.clients.add(this);
     }
 
     public SelectionKey getKey() {

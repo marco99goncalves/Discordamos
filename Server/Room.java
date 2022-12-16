@@ -1,6 +1,6 @@
 import java.util.TreeSet;
 
-public class Room{
+public class Room implements Comparable<Room>{
     TreeSet<ClientModel> clients;
     String roomName;
 
@@ -20,5 +20,9 @@ public class Room{
 
     public void setRoomName(String roomName) {
         this.roomName = roomName;
+    }
+    @Override
+    public int compareTo(Room room) {
+        return this.roomName.compareTo(room.roomName);
     }
 }

@@ -4,6 +4,7 @@ import java.awt.event.*;
 import javax.swing.*;
 import java.awt.Toolkit;
 import java.net.Socket;
+import java.util.Scanner;
 
 
 public class ChatClient implements Runnable {
@@ -85,13 +86,16 @@ public class ChatClient implements Runnable {
         // PREENCHER AQUI com código que envia a mensagem ao servidor
         if (message == null || message.isEmpty())
             return;
-
         try {
             outToServer.writeBytes(message + '\n');
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
+
+        Scanner sc = new Scanner(message);
+        if(sc.next().equals("/bye"))
+            System.exit(0);
     }
 
     // Método principal do objecto

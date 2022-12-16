@@ -13,18 +13,16 @@ public class Server {
 
     // Decoder for incoming text -- assume UTF-8
 
-    static TreeSet<Room> rooms;
+    static TreeMap<String, Room> rooms;
     static TreeSet<String> chosenNicks;
-
     static TreeSet<String> commands;
-    static Room defaultRoom;
 
     static public void main(String args[]) throws Exception {
         // Parse port from command line
         int port = Integer.parseInt(args[0]);
 
         // TODO Remove this room
-        defaultRoom = new Room("DEFAULT");
+        rooms = new TreeMap<>();
         chosenNicks = new TreeSet<>();
 
         InitializeCommands();
@@ -100,6 +98,7 @@ public class Server {
 
                                 Socket s = null;
                                 try {
+                                    //TODO Remove user from things
                                     s = sc.socket();
                                     System.out.println("Closing connection to " + s);
                                     s.close();
@@ -158,28 +157,23 @@ public class Server {
             return false;
         }
 
-        System.out.println(message + " " + message.contains("\n"));
-
-
-
-        // TODO: Find a way to replace
         if (thisSelectionKey.attachment() == null) {
             ClientModel client = new ClientModel();
             client.setKey(thisSelectionKey);
-            client.setRoom(defaultRoom);
 
             thisSelectionKey.attach(client);
             buffer.clear();
         }
 
+        ClientModel client  = (ClientModel) thisSelectionKey.attachment();
         if (!message.contains("\n")) {
             // Buffer it because we don't have a new line, so it's not a complete message.
-            ((ClientModel) thisSelectionKey.attachment()).buffer += message;
+            client.buffer += message;
             buffer.clear();
             return true;
         }
 
-        message = ((ClientModel)thisSelectionKey.attachment()).buffer + message;
+        message = client.buffer + message;
         processMessage(message, selector.keys(), thisSelectionKey);
 
 
@@ -201,7 +195,6 @@ public class Server {
 //
 //        }
 
-        ClientModel client = (ClientModel) sc.keyFor(selector).attachment();
         client.setBuffer("");
 
         buffer.clear();
@@ -215,8 +208,10 @@ public class Server {
         if(IsCommand(message)){
             RunCommand(message, keys, senderKey);
         }else{
+            if(client.getName().equals("") || client.getRoom() == null)
+                return;
             //It's a message,  broadcast it to all users in the room
-            SendMessageToAllUsers(client.name + ">" + message, defaultRoom);
+            SendMessageToAllUsers(client.name + ">" + message, client.room);
         }
     }
 
@@ -275,12 +270,29 @@ public class Server {
     static void RunCommand(String command, Set<SelectionKey> keys, SelectionKey senderKey){
         Scanner sc = new Scanner(command);
         String first = sc.next();
+        ClientModel client = (ClientModel) senderKey.attachment();
 
-        switch(first){
-            case "/nick":
+        if(client.getRoom() == null)
+            if(!first.equals("/nick") && !first.equals("/bye") && !first.equals("/join"))  {
+                SendMessageToUser("ERROR\n", senderKey);
+                return;
+            }
+
+        switch (first) {
+            case "/nick" -> {
                 String newNick = sc.next();
                 RunNickCommand(newNick, keys, senderKey);
-                break;
+            }
+            case "/join" -> {
+                String roomName = sc.next();
+                RunJoinCommand(roomName, keys, senderKey);
+            }
+            case "/leave" -> {
+                RunLeaveCommand(keys, senderKey);
+            }
+            case "/bye" -> {
+                RunByeCommand(keys, senderKey);
+            }
         }
     }
 
@@ -304,6 +316,58 @@ public class Server {
             chosenNicks.add(newNick);
             SendMessageToAllButSender("NEWNICK " + oldNick + " " + newNick + "\n", client.room, senderKey);
             SendMessageToUser("OK\n", senderKey);
+        }
+    }
+    static void RunJoinCommand(String roomName, Set<SelectionKey> keys, SelectionKey senderKey){
+        ClientModel client = (ClientModel) senderKey.attachment();
+
+        if(client.getName().equals("")) {
+            SendMessageToUser("ERROR\n", senderKey);
+            return;
+        }
+
+        if(client.getRoom() != null){
+            // We're in a room
+            String message = "LEFT " + client.getName() + "\n";
+            SendMessageToAllButSender(message, client.getRoom(), senderKey);
+        }
+
+        if(!rooms.containsKey(roomName)) {
+            Room newRoom = new Room(roomName);
+            rooms.put(roomName, newRoom);
+        }
+
+        client.setRoom(rooms.get(roomName));
+        SendMessageToUser("OK\n", senderKey);
+
+        String message = "JOINED " + client.getName() + "\n";
+        SendMessageToAllButSender(message, client.getRoom(), senderKey);
+    }
+
+    static void RunLeaveCommand(Set<SelectionKey> keys, SelectionKey senderKey){
+        ClientModel client = (ClientModel) senderKey.attachment();
+        Room oldRoom = client.getRoom();
+        client.setRoom(null);
+        oldRoom.clients.remove(client);
+
+        SendMessageToAllButSender("LEFT " + client.name + "\n", oldRoom, senderKey);
+        SendMessageToUser("OK\n", senderKey);
+    }
+
+    static void RunByeCommand(Set<SelectionKey> keys, SelectionKey senderKey){
+        ClientModel client = (ClientModel) senderKey.attachment();
+        if(client.getRoom() != null){
+            client.getRoom().clients.remove(client);
+            chosenNicks.remove(client.getName());
+            SendMessageToAllButSender("LEFT " + client.name + "\n", client.getRoom(), senderKey);
+        }
+        SendMessageToUser("BYE\n", senderKey);
+        senderKey.cancel();
+        try {
+            senderKey.channel().close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
