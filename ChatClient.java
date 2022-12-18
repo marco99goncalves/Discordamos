@@ -94,8 +94,11 @@ public class ChatClient implements Runnable {
         }
 
         Scanner sc = new Scanner(message);
-        if(sc.next().equals("/bye"))
+        if(sc.next().equals("/bye")) {
+            inFromServer.close();
+            connSocket.close();
             System.exit(0);
+        }
     }
 
     // Método principal do objecto

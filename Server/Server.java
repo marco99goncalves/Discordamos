@@ -94,6 +94,7 @@ public class Server {
                             // If the connection is dead, remove it from the selector
                             // and close it
                             if (!ok) {
+                                RunByeCommand(keys, key);
                                 key.cancel();
 
                                 Socket s = null;
@@ -129,6 +130,12 @@ public class Server {
         } catch (IOException ie) {
             ie.printStackTrace();
         }
+    }
+
+    static void RemoveUserFromServer(ClientModel client){
+        chosenNicks.remove(client.getName());
+        client.getRoom().clients.remove(client);
+        client.setRoom(null);
     }
 
     private static void InitializeCommands() {
@@ -362,13 +369,6 @@ public class Server {
             SendMessageToAllButSender("LEFT " + client.name + "\n", client.getRoom(), senderKey);
         }
         SendMessageToUser("BYE\n", senderKey);
-        senderKey.cancel();
-        try {
-            senderKey.channel().close();
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
     }
 
 }
