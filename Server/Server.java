@@ -95,7 +95,9 @@ public class Server {
                             // and close it
                             if (!ok) {
                                 RunByeCommand(keys, key);
+                                /*
                                 key.cancel();
+
 
                                 Socket s = null;
                                 try {
@@ -106,6 +108,7 @@ public class Server {
                                 } catch (IOException ie) {
                                     System.err.println("Error closing socket " + s + ": " + ie);
                                 }
+                                */
                             }
 
                         } catch (IOException ie) {
@@ -214,9 +217,11 @@ public class Server {
 
         if(IsCommand(message)){
             RunCommand(message, keys, senderKey);
-        }else{
-            if(client.getName().equals("") || client.getRoom() == null)
+        }else {
+            if (client.getName().equals("") || client.getRoom() == null){
+                SendMessageToUser("ERROR\n", senderKey);
                 return;
+            }
             //It's a message,  broadcast it to all users in the room
             SendMessageToAllUsers(client.name + ">" + message, client.room);
         }
@@ -250,6 +255,9 @@ public class Server {
     }
 
     static void SendMessageToAllButSender(String message, Room room, SelectionKey receiverKey){
+        if(room == null)
+            return;
+
         for(ClientModel client : room.clients){
             SelectionKey key = client.getKey();
             if(key == receiverKey) // Ignore the sender
@@ -309,21 +317,16 @@ public class Server {
             SendMessageToUser("ERROR\n", senderKey);
             return;
         }
+
         ClientModel client = (ClientModel) senderKey.attachment();
-        if(client.getRoom() == null){
-            // We are not in a room, or we are creating a new user
-            client.setName(newNick);
-            chosenNicks.add(newNick);
-            SendMessageToUser("OK\n", senderKey);
-        }else{
-            // We are currently in a room
-            String oldNick = client.getName();
-            client.setName(newNick);
-            chosenNicks.remove(oldNick);
-            chosenNicks.add(newNick);
-            SendMessageToAllButSender("NEWNICK " + oldNick + " " + newNick + "\n", client.room, senderKey);
-            SendMessageToUser("OK\n", senderKey);
-        }
+        String oldNick = client.getName();
+        client.setName(newNick);
+
+        chosenNicks.remove(oldNick);
+        chosenNicks.add(newNick);
+
+        SendMessageToAllButSender("NEWNICK " + oldNick + " " + newNick + "\n", client.room, senderKey);
+        SendMessageToUser("OK\n", senderKey);
     }
     static void RunJoinCommand(String roomName, Set<SelectionKey> keys, SelectionKey senderKey){
         ClientModel client = (ClientModel) senderKey.attachment();
@@ -365,10 +368,18 @@ public class Server {
         ClientModel client = (ClientModel) senderKey.attachment();
         if(client.getRoom() != null){
             client.getRoom().clients.remove(client);
-            chosenNicks.remove(client.getName());
             SendMessageToAllButSender("LEFT " + client.name + "\n", client.getRoom(), senderKey);
         }
+        chosenNicks.remove(client.getName());
         SendMessageToUser("BYE\n", senderKey);
+
+        senderKey.cancel();
+        try {
+            senderKey.channel().close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
     }
 
 }
