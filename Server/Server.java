@@ -14,7 +14,7 @@ public class Server {
     // Decoder for incoming text -- assume UTF-8
 
     static TreeMap<String, Room> rooms;
-    static TreeSet<String> chosenNicks;
+    static TreeMap<String, ClientModel> chosenNicks;
     static TreeSet<String> commands;
 
     static public void main(String args[]) throws Exception {
@@ -23,7 +23,7 @@ public class Server {
 
         // TODO Remove this room
         rooms = new TreeMap<>();
-        chosenNicks = new TreeSet<>();
+        chosenNicks = new TreeMap<>();
 
         InitializeCommands();
 
@@ -135,18 +135,13 @@ public class Server {
         }
     }
 
-    static void RemoveUserFromServer(ClientModel client){
-        chosenNicks.remove(client.getName());
-        client.getRoom().clients.remove(client);
-        client.setRoom(null);
-    }
-
     private static void InitializeCommands() {
         commands = new TreeSet<>();
         commands.add("/nick");
         commands.add("/join");
         commands.add("/leave");
         commands.add("/bye");
+        commands.add("/priv");
     }
 
     // Just read the message from the socket and send it to stdout
@@ -288,7 +283,7 @@ public class Server {
         ClientModel client = (ClientModel) senderKey.attachment();
 
         if(client.getRoom() == null)
-            if(!first.equals("/nick") && !first.equals("/bye") && !first.equals("/join"))  {
+            if(!first.equals("/nick") && !first.equals("/bye") && !first.equals("/join") && !first.equals("/priv"))  {
                 SendMessageToUser("ERROR\n", senderKey);
                 return;
             }
@@ -308,11 +303,32 @@ public class Server {
             case "/bye" -> {
                 RunByeCommand(keys, senderKey);
             }
+            case "/priv" -> {
+                String receiverNick = sc.next();
+                String message = sc.nextLine();
+                message = message.stripLeading() + "\n";
+                RunPrivCommand(keys, senderKey, receiverNick, message);
+            }
         }
     }
 
+    static void RunPrivCommand(Set<SelectionKey> keys, SelectionKey senderKey, String receiverNick, String message){
+        ClientModel client = (ClientModel) senderKey.attachment();
+
+        if(client.getName().isEmpty() || !chosenNicks.containsKey(receiverNick)){
+            SendMessageToUser("ERROR\n", senderKey);
+            return;
+        }
+
+        ClientModel receiver = chosenNicks.get(receiverNick);
+        String msg = "PRIVATE " + client.getName() + " " + message;
+        SendMessageToUser(msg, receiver.getKey());
+
+        SendMessageToUser("OK\n", senderKey);
+    }
+
     static void RunNickCommand(String newNick, Set<SelectionKey> keys, SelectionKey senderKey){
-        if(chosenNicks.contains(newNick)){
+        if(chosenNicks.containsKey(newNick)){
             // User is already in use
             SendMessageToUser("ERROR\n", senderKey);
             return;
@@ -323,7 +339,7 @@ public class Server {
         client.setName(newNick);
 
         chosenNicks.remove(oldNick);
-        chosenNicks.add(newNick);
+        chosenNicks.put(newNick, client);
 
         SendMessageToAllButSender("NEWNICK " + oldNick + " " + newNick + "\n", client.room, senderKey);
         SendMessageToUser("OK\n", senderKey);
@@ -331,7 +347,7 @@ public class Server {
     static void RunJoinCommand(String roomName, Set<SelectionKey> keys, SelectionKey senderKey){
         ClientModel client = (ClientModel) senderKey.attachment();
 
-        if(client.getName().equals("")) {
+        if(client.getName().isEmpty()) {
             SendMessageToUser("ERROR\n", senderKey);
             return;
         }
