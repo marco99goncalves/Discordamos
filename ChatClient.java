@@ -29,6 +29,7 @@ public class ChatClient implements Runnable {
     DataOutputStream outToServer;
     BufferedReader inFromServer;
 
+    boolean clientActive = false;
 
     // Construtor
     public ChatClient(String server, int port) throws IOException {
@@ -74,6 +75,7 @@ public class ChatClient implements Runnable {
         // Se for necessário adicionar código de inicialização ao
         // construtor, deve ser colocado aqui
 
+        clientActive = true;
         // Initialize the TCP Connection
         connSocket = new Socket(server, port);
         outToServer = new DataOutputStream(connSocket.getOutputStream());
@@ -95,17 +97,21 @@ public class ChatClient implements Runnable {
         }
 
         Scanner sc = new Scanner(message);
+        if(!sc.hasNext()) return;
         if(sc.next().equals("/bye")) {
+            clientActive = false;
             inFromServer.close();
             connSocket.close();
+            System.exit(0);
         }
+
     }
 
     // Método principal do objecto
     public void run() {
         // PREENCHER AQUI
         String res = null;
-        while(true){
+        while(clientActive){
             try {
                 if (((res = inFromServer.readLine()) != null)){
                     printMessage(res + "\n");
@@ -116,8 +122,6 @@ public class ChatClient implements Runnable {
                 throw new RuntimeException(e);
             }
         }
-
-
     }
 
     // Instancia o ChatClient e arranca-o invocando o seu método run()
