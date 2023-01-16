@@ -262,7 +262,7 @@ public class Server {
             case "/nick" -> {
                 String newNick = sc.next();
                 RunNickCommand(newNick, keys, senderKey);
-            }RunByeCommand
+            }
             case "/join" -> {
                 String roomName = sc.next();
                 RunJoinCommand(roomName, keys, senderKey);
