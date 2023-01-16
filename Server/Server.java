@@ -185,7 +185,7 @@ public class Server {
                 return;
             }
             //It's a message,  broadcast it to all users in the room
-            SendMessageToAllUsers(client.name + ": " + message, client.room);
+            SendMessageToAllUsers("MESSAGE " + client.name + " " + message, client.room);
         }
     }
 

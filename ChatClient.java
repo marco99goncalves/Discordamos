@@ -95,16 +95,6 @@ public class ChatClient implements Runnable {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
-
-        Scanner sc = new Scanner(message);
-        if(!sc.hasNext()) return;
-        if(sc.next().equals("/bye")) {
-            clientActive = false;
-            inFromServer.close();
-            connSocket.close();
-            System.exit(0);
-        }
-
     }
 
     // Método principal do objecto
@@ -114,7 +104,8 @@ public class ChatClient implements Runnable {
         while(clientActive){
             try {
                 if (((res = inFromServer.readLine()) != null)){
-                    printMessage(res + "\n");
+                    String parsed = ParseMessage(res);
+                    printMessage(parsed);
                 }
             } catch (IOException e) {
                 System.out.println("ERRO: " + res);
@@ -122,6 +113,67 @@ public class ChatClient implements Runnable {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    public String ParseMessage(String message) throws IOException {
+        Scanner sc = new Scanner(message);
+
+        if(!sc.hasNext())
+            return "";
+
+        String first = sc.next();
+        String result = "";
+       switch (first){
+           case "MESSAGE":{
+               String name = sc.next();
+               String msg = sc.nextLine();
+               result = name + ":" + msg;
+               break;
+           }
+           case "JOINED":{
+               String name = sc.next();
+               result = name + " has joined the room";
+               break;
+           }
+           case "NEWNICK":{
+               String old_name = sc.next();
+               String new_name = sc.next();
+               result = old_name + " changed their nickname to " + new_name;
+               break;
+           }
+           case "PRIVATE":{
+               String name = sc.next();
+               String msg = sc.nextLine();
+               result = "[Private] " + name + ":" + msg;
+               break;
+           }
+           case "ERROR": {
+               result = "An error has occurred.";
+               break;
+           }
+           case "LEFT":{
+               String name = sc.next();
+               result = name + " has left the room.";
+               break;
+           }
+           case "BYE":{
+                result = "Goodbye : (";
+               clientActive = false;
+               inFromServer.close();
+               connSocket.close();
+//               System.exit(0);
+               break;
+           }
+           case "OK":{
+               result = "Success";
+               break;
+           }
+           default:{
+               result = first;
+           }
+       }
+
+        return result + "\n";
     }
 
     // Instancia o ChatClient e arranca-o invocando o seu método run()
