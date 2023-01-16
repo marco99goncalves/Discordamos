@@ -94,7 +94,7 @@ public class Server {
                             // If the connection is dead, remove it from the selector
                             // and close it
                             if (!ok) {
-                                RunByeCommand(keys, key);
+                                RunByeCommand(keys, key, false);
                             }
 
                         } catch (IOException ie) {
@@ -156,7 +156,7 @@ public class Server {
             buffer.clear();
         }
 
-        ClientModel client  = (ClientModel) thisSelectionKey.attachment();
+        ClientModel client = (ClientModel) thisSelectionKey.attachment();
         if (!message.contains("\n")) {
             // Buffer it because we don't have a new line, so it's not a complete message.
             client.buffer += message;
@@ -173,26 +173,26 @@ public class Server {
         return true;
     }
 
-    static void processMessage(String message, Set<SelectionKey> keys, SelectionKey senderKey){
-        //Parse message
+    static void processMessage(String message, Set<SelectionKey> keys, SelectionKey senderKey) {
+        // Parse message
         ClientModel client = (ClientModel) senderKey.attachment();
 
-        if(IsCommand(message)){
+        if (IsCommand(message)) {
             RunCommand(message, keys, senderKey);
-        }else {
-            if (client.getName().equals("") || client.getRoom() == null){
+        } else {
+            if (client.getName().equals("") || client.getRoom() == null) {
                 SendMessageToUser("ERROR\n", senderKey);
                 return;
             }
-            //It's a message,  broadcast it to all users in the room
+            // It's a message, broadcast it to all users in the room
             SendMessageToAllUsers("MESSAGE " + client.name + " " + message, client.room);
         }
     }
 
-    static void SendMessageToAllUsers(String message, Room room){
-        for(ClientModel client : room.clients){
+    static void SendMessageToAllUsers(String message, Room room) {
+        for (ClientModel client : room.clients) {
             SelectionKey key = client.getKey();
-            if(!key.isAcceptable()){
+            if (!key.isAcceptable()) {
                 SocketChannel s = (SocketChannel) key.channel();
                 try {
                     s.write(ByteBuffer.wrap(message.getBytes()));
@@ -204,28 +204,28 @@ public class Server {
         }
     }
 
-    static void SendMessageToUser(String message, SelectionKey receiverKey){
-        if(!receiverKey.isAcceptable()){
+    static void SendMessageToUser(String message, SelectionKey receiverKey) {
+        if (!receiverKey.isAcceptable()) {
             SocketChannel s = (SocketChannel) receiverKey.channel();
-            try{
+            try {
                 s.write(ByteBuffer.wrap(message.getBytes()));
-            }catch (IOException e){
+            } catch (IOException e) {
                 e.printStackTrace();
                 throw new RuntimeException(e);
             }
         }
     }
 
-    static void SendMessageToAllButSender(String message, Room room, SelectionKey receiverKey){
-        if(room == null)
+    static void SendMessageToAllButSender(String message, Room room, SelectionKey receiverKey) {
+        if (room == null)
             return;
 
-        for(ClientModel client : room.clients){
+        for (ClientModel client : room.clients) {
             SelectionKey key = client.getKey();
-            if(key == receiverKey) // Ignore the sender
+            if (key == receiverKey) // Ignore the sender
                 continue;
 
-            if(!key.isAcceptable()){
+            if (!key.isAcceptable()) {
                 SocketChannel s = (SocketChannel) key.channel();
                 try {
                     s.write(ByteBuffer.wrap(message.getBytes()));
@@ -237,23 +237,23 @@ public class Server {
         }
     }
 
-    static boolean IsCommand(String message){
+    static boolean IsCommand(String message) {
         Scanner sc = new Scanner(message);
 
-        if(!sc.hasNext())
+        if (!sc.hasNext())
             return false;
 
         String first = sc.next();
         return commands.contains(first);
     }
 
-    static void RunCommand(String command, Set<SelectionKey> keys, SelectionKey senderKey){
+    static void RunCommand(String command, Set<SelectionKey> keys, SelectionKey senderKey) {
         Scanner sc = new Scanner(command);
         String first = sc.next();
         ClientModel client = (ClientModel) senderKey.attachment();
 
-        if(client.getRoom() == null)
-            if(!first.equals("/nick") && !first.equals("/bye") && !first.equals("/join") && !first.equals("/priv"))  {
+        if (client.getRoom() == null)
+            if (!first.equals("/nick") && !first.equals("/bye") && !first.equals("/join") && !first.equals("/priv")) {
                 SendMessageToUser("ERROR\n", senderKey);
                 return;
             }
@@ -262,7 +262,7 @@ public class Server {
             case "/nick" -> {
                 String newNick = sc.next();
                 RunNickCommand(newNick, keys, senderKey);
-            }
+            }RunByeCommand
             case "/join" -> {
                 String roomName = sc.next();
                 RunJoinCommand(roomName, keys, senderKey);
@@ -271,7 +271,7 @@ public class Server {
                 RunLeaveCommand(keys, senderKey);
             }
             case "/bye" -> {
-                RunByeCommand(keys, senderKey);
+                RunByeCommand(keys, senderKey, true);
             }
             case "/priv" -> {
                 String receiverNick = sc.next();
@@ -282,10 +282,10 @@ public class Server {
         }
     }
 
-    static void RunPrivCommand(Set<SelectionKey> keys, SelectionKey senderKey, String receiverNick, String message){
+    static void RunPrivCommand(Set<SelectionKey> keys, SelectionKey senderKey, String receiverNick, String message) {
         ClientModel client = (ClientModel) senderKey.attachment();
 
-        if(client.getName().isEmpty() || !chosenNicks.containsKey(receiverNick)){
+        if (client.getName().isEmpty() || !chosenNicks.containsKey(receiverNick)) {
             SendMessageToUser("ERROR\n", senderKey);
             return;
         }
@@ -297,8 +297,8 @@ public class Server {
         SendMessageToUser("OK\n", senderKey);
     }
 
-    static void RunNickCommand(String newNick, Set<SelectionKey> keys, SelectionKey senderKey){
-        if(chosenNicks.containsKey(newNick)){
+    static void RunNickCommand(String newNick, Set<SelectionKey> keys, SelectionKey senderKey) {
+        if (chosenNicks.containsKey(newNick)) {
             // User is already in use
             SendMessageToUser("ERROR\n", senderKey);
             return;
@@ -314,21 +314,22 @@ public class Server {
         SendMessageToAllButSender("NEWNICK " + oldNick + " " + newNick + "\n", client.room, senderKey);
         SendMessageToUser("OK\n", senderKey);
     }
-    static void RunJoinCommand(String roomName, Set<SelectionKey> keys, SelectionKey senderKey){
+
+    static void RunJoinCommand(String roomName, Set<SelectionKey> keys, SelectionKey senderKey) {
         ClientModel client = (ClientModel) senderKey.attachment();
 
-        if(client.getName().isEmpty()) {
+        if (client.getName().isEmpty()) {
             SendMessageToUser("ERROR\n", senderKey);
             return;
         }
 
-        if(client.getRoom() != null){
+        if (client.getRoom() != null) {
             // We're in a room
             String message = "LEFT " + client.getName() + "\n";
             SendMessageToAllButSender(message, client.getRoom(), senderKey);
         }
 
-        if(!rooms.containsKey(roomName)) {
+        if (!rooms.containsKey(roomName)) {
             Room newRoom = new Room(roomName);
             rooms.put(roomName, newRoom);
         }
@@ -340,7 +341,7 @@ public class Server {
         SendMessageToAllButSender(message, client.getRoom(), senderKey);
     }
 
-    static void RunLeaveCommand(Set<SelectionKey> keys, SelectionKey senderKey){
+    static void RunLeaveCommand(Set<SelectionKey> keys, SelectionKey senderKey) {
         ClientModel client = (ClientModel) senderKey.attachment();
         Room oldRoom = client.getRoom();
         client.setRoom(null);
@@ -350,14 +351,16 @@ public class Server {
         SendMessageToUser("OK\n", senderKey);
     }
 
-    static void RunByeCommand(Set<SelectionKey> keys, SelectionKey senderKey){
+    static void RunByeCommand(Set<SelectionKey> keys, SelectionKey senderKey, boolean sendBye) {
         ClientModel client = (ClientModel) senderKey.attachment();
-        if(client.getRoom() != null){
+        if (client.getRoom() != null) {
             client.getRoom().clients.remove(client);
             SendMessageToAllButSender("LEFT " + client.name + "\n", client.getRoom(), senderKey);
         }
         chosenNicks.remove(client.getName());
-        SendMessageToUser("BYE\n", senderKey);
+
+        if (sendBye)
+            SendMessageToUser("BYE\n", senderKey);
 
         senderKey.cancel();
         try {

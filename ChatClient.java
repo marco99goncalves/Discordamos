@@ -161,7 +161,7 @@ public class ChatClient implements Runnable {
                clientActive = false;
                inFromServer.close();
                connSocket.close();
-//               System.exit(0);
+               System.exit(0);
                break;
            }
            case "OK":{
