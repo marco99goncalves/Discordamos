@@ -95,20 +95,6 @@ public class Server {
                             // and close it
                             if (!ok) {
                                 RunByeCommand(keys, key);
-                                /*
-                                key.cancel();
-
-
-                                Socket s = null;
-                                try {
-                                    //TODO Remove user from things
-                                    s = sc.socket();
-                                    System.out.println("Closing connection to " + s);
-                                    s.close();
-                                } catch (IOException ie) {
-                                    System.err.println("Error closing socket " + s + ": " + ie);
-                                }
-                                */
                             }
 
                         } catch (IOException ie) {
@@ -181,25 +167,6 @@ public class Server {
         message = client.buffer + message;
         processMessage(message, selector.keys(), thisSelectionKey);
 
-
-//        // Decode and print the message to stdout
-//        Set<SelectionKey> keys = selector.keys();
-//        Iterator<SelectionKey> it = keys.iterator();
-//        while (it.hasNext()) {
-//            SelectionKey key = it.next();
-//            if (!key.isAcceptable()) {
-//                SocketChannel s = (SocketChannel) key.channel();
-//                ClientModel client = (ClientModel) sc.keyFor(selector).attachment();
-//
-//                String send = client.name + "> " + client.buffer + message;
-////                System.out.println("FINAL_MESSAGE: " + send);
-////                System.out.println("ola");
-//                s.write(StandardCharsets.US_ASCII.encode(send));
-//                buffer.rewind();
-//            }
-//
-//        }
-
         client.setBuffer("");
 
         buffer.clear();
@@ -218,7 +185,7 @@ public class Server {
                 return;
             }
             //It's a message,  broadcast it to all users in the room
-            SendMessageToAllUsers(client.name + ">" + message, client.room);
+            SendMessageToAllUsers(client.name + ": " + message, client.room);
         }
     }
 
@@ -228,7 +195,7 @@ public class Server {
             if(!key.isAcceptable()){
                 SocketChannel s = (SocketChannel) key.channel();
                 try {
-                    s.write(StandardCharsets.US_ASCII.encode(message));
+                    s.write(ByteBuffer.wrap(message.getBytes()));
                 } catch (IOException e) {
                     e.printStackTrace();
                     throw new RuntimeException(e);
@@ -241,7 +208,7 @@ public class Server {
         if(!receiverKey.isAcceptable()){
             SocketChannel s = (SocketChannel) receiverKey.channel();
             try{
-                s.write(StandardCharsets.US_ASCII.encode(message));
+                s.write(ByteBuffer.wrap(message.getBytes()));
             }catch (IOException e){
                 e.printStackTrace();
                 throw new RuntimeException(e);
@@ -261,7 +228,7 @@ public class Server {
             if(!key.isAcceptable()){
                 SocketChannel s = (SocketChannel) key.channel();
                 try {
-                    s.write(StandardCharsets.US_ASCII.encode(message));
+                    s.write(ByteBuffer.wrap(message.getBytes()));
                 } catch (IOException e) {
                     e.printStackTrace();
                     throw new RuntimeException(e);
@@ -272,6 +239,9 @@ public class Server {
 
     static boolean IsCommand(String message){
         Scanner sc = new Scanner(message);
+
+        if(!sc.hasNext())
+            return false;
 
         String first = sc.next();
         return commands.contains(first);

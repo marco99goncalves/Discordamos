@@ -4,6 +4,7 @@ import java.awt.event.*;
 import javax.swing.*;
 import java.awt.Toolkit;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
 
@@ -87,7 +88,7 @@ public class ChatClient implements Runnable {
         if (message == null || message.isEmpty())
             return;
         try {
-            outToServer.writeBytes(message + '\n');
+            outToServer.write((message + "\n").getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
@@ -97,7 +98,6 @@ public class ChatClient implements Runnable {
         if(sc.next().equals("/bye")) {
             inFromServer.close();
             connSocket.close();
-            System.exit(0);
         }
     }
 
