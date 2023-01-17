@@ -59,7 +59,7 @@ public class ChatClient implements Runnable {
                     String message = chatBox.getText();
                     newMessage(message);
                 } catch (IOException ex) {
-                    ex.printStackTrace();
+//                    ex.printStackTrace();
                 } finally {
                     chatBox.setText("");
                 }
@@ -92,7 +92,7 @@ public class ChatClient implements Runnable {
         try {
             outToServer.write((message + "\n").getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
-            e.printStackTrace();
+//            e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
@@ -108,8 +108,8 @@ public class ChatClient implements Runnable {
                     printMessage(parsed);
                 }
             } catch (IOException e) {
-                System.out.println("ERRO: " + res);
-                e.printStackTrace();
+//                System.out.println("ERRO: " + res);
+//                e.printStackTrace();
                 throw new RuntimeException(e);
             }
         }
