@@ -2,7 +2,6 @@ import java.io.*;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
-import java.awt.Toolkit;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
@@ -11,7 +10,7 @@ import java.util.Scanner;
 public class ChatClient implements Runnable {
 
     // Variáveis relacionadas com a interface gráfica --- * NÃO MODIFICAR *
-    JFrame frame = new JFrame("Discordamos");
+    JFrame frame = new JFrame("Chat Client");
     private JTextField chatBox = new JTextField();
     private JTextArea chatArea = new JTextArea();
     // --- Fim das variáveis relacionadas coma interface gráfica
@@ -44,12 +43,6 @@ public class ChatClient implements Runnable {
         frame.add(new JScrollPane(chatArea), BorderLayout.CENTER);
         frame.setSize(500, 500);
         frame.setVisible(true);
-
-        java.net.URL url = ClassLoader.getSystemResource("Resources/icon.png");
-        Toolkit kit = Toolkit.getDefaultToolkit();
-        Image img = kit.createImage(url);
-        frame.setIconImage(img);
-
         chatArea.setEditable(false);
         chatBox.setEditable(true);
         chatBox.addActionListener(new ActionListener() {
